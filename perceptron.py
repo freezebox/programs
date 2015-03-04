@@ -1,5 +1,3 @@
-#known data = up/downs
-#inputs matrix = intra_osc, intra_sum, day_osc, day_sum
 from random import uniform
 import csv
 from math import exp, floor
