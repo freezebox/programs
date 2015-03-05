@@ -1,5 +1,6 @@
-from random import uniform
-import csv
+#Simple Multilayer Perceptron Neural Network
+#with Stochastic Gradient Descent
+from random import uniform, randint
 from math import exp, floor
 
 #Definitions
@@ -94,7 +95,7 @@ def weighted_input_build(input, activation_matrix):
 		input_holder = activation_matrix[i]
 	return place_holder
 	
-#Partial of cost wrt final output
+#Partial of cost w.r.t. final output
 def aL_partial_build(final_output, known_values):
 	place_holder = []
 	for i in range(len(final_output)):
@@ -103,28 +104,27 @@ def aL_partial_build(final_output, known_values):
 	return place_holder
 	
 #Weights matrix update function
-def weights_update(weights_matrix, partials, input_size, layer_1_size):
-	learning_rate = 0.02
-	size_of_data_set = 130
+def weights_update(weights_matrix, partials, input_size, layer_1_size, percent, rate):
+	place_holder = weights_matrix[:][:][:]
 	for i in range(len(partials)):
 		if i >= (input_size * layer_1_size):
 			index_1 = 1
+			index_3 = i % layer_1_size
 		else:
 			index_1 = 0
+			index_3 = i % (input_size)
 		if i < (input_size * layer_1_size):
 			index_2 = floor(i / input_size)
 		else:
 			index_2 = 0
-		index_3 = i % (input_size)
 		
 		weights_matrix[index_1][index_2][index_3] = weights_matrix[index_1][index_2][index_3] \
-			- ((learning_rate / size_of_data_set) * partials[i])
+			- ((rate / 1) * partials[i])
+	
 	return weights_matrix
 			
 #Bias vector update function
-def bias_update(bias_vectors, deltas):
-	learning_rate = 0.02
-	size_of_data_set = 130
+def bias_update(bias_vectors, deltas, percent, rate):
 	layer_1_list = []
 	#One place holder for each neuron in layer 1
 	for i in range(len(deltas[0])):
@@ -135,7 +135,7 @@ def bias_update(bias_vectors, deltas):
 	
 	for i in range(len(bias_vectors)):
 		for j in range(len(bias_vectors[i])):
-			bias_vectors[i][j] = bias_vectors[i][j] - (learning_rate / size_of_data_set) * place_holder_1[i][j]
+			bias_vectors[i][j] = bias_vectors[i][j] - (rate / 1) * place_holder_1[i][j]
 	return bias_vectors
 
 #Neuron bias attribute update using updated bias vector
@@ -197,8 +197,10 @@ class network_layer(object):
 inputs = []
 known = [""]
 network_aggregate = [] #List of layer objects
+learning_rate = 0.01
+cycles = 2000
 
-#Get input data
+#Get input data and mark a subset for training
 inputs_f = open("c:\\Users\\Anthony\\Documents\\osc_data_2.csv", 'r')
 for row in inputs_f:
 	row = row.split(',')
@@ -206,8 +208,10 @@ for row in inputs_f:
 		row[i] = float(row[i])
 	inputs.append(row)
 inputs_f.close()
+inputs_old = inputs[:]
+input_subset_size = floor((8 * len(inputs)) / 10)
 
-#Get known training data
+#Get known results data
 known_f = open("c:\\Users\\Anthony\\Documents\\known.csv", 'r')
 for row in known_f:
 	row = row[0 : len(row) - 1]
@@ -217,10 +221,7 @@ known = known[1:]
 
 #Convert training strings to numbers
 for i in range(len(known)):
-	if known[i] == "up":
-		known[i] = 1.0
-	else:
-		known[i] = -1.0
+	known[i] = float(known[i])
 
 #Initialize neurons and their layers with input data,
 #add each layer to combined layer list
@@ -228,24 +229,24 @@ a = neuron(len(inputs[0]))
 b = neuron(len(inputs[0]))
 c = neuron(len(inputs[0]))
 d = neuron(len(inputs[0]))
-e = neuron(len(inputs[0]))
-f = neuron(len(inputs[0]))
-g = neuron(len(inputs[0]))
-layer_1 = network_layer(a, b, c, d, e, f, g)
+#e = neuron(len(inputs[0]))
+#f = neuron(len(inputs[0]))
+#g = neuron(len(inputs[0]))
+layer_1 = network_layer(a, b, c, d)
 network_aggregate.append(layer_1)
 
-z = neuron(layer_1.get_layer_size())
-layer_2 = network_layer(z)
+zeta = neuron(layer_1.get_layer_size())
+layer_2 = network_layer(zeta)
 network_aggregate.append(layer_2)
 
 #Build matrix of weight matrices for each layer
 weight_matrices = weight_build(network_aggregate)
-
+			
 #Build bias vectors
 bias_vectors = bias_build(network_aggregate)
 
-for j in range(10000):
-	for i in range(len(inputs)):
+for j in range(cycles):
+	for i in range(input_subset_size):
 		deltas = []
 		#Build activation matrix
 		activations = activation_build(inputs[i], network_aggregate)
@@ -260,7 +261,7 @@ for j in range(10000):
 		output_1 = layer_1.run([inputs[i]])
 		output_2 = layer_2.run(output_1)
 
-		#Partial derivative of cost wrt final layer outputs
+		#Partial derivative of cost w.r.t. final layer outputs
 		partial_wrt_aL = aL_partial_build(output_2, known)
 		
 		#Calculate delta for last layer
@@ -274,7 +275,8 @@ for j in range(10000):
 			z = [act_derivative_to_matrix(weighted_input)[i]]
 			for j in range(len(z)):
 				for k in range(len(z[j])):
-					delta_x.append(hadamard_product(matrix_multiply(transpose([weighted_input[-1]]),deltas[0]), [[z[j][k]]]))
+					delta_x.append(hadamard_product(matrix_multiply(transpose([weighted_input[-1]]), \
+						deltas[0]), [[z[j][k]]]))
 			deltas.insert(0, delta_x)
 		
 		#Some reformatting of the delta data to make it easier to work with than what resulted earlier
@@ -292,17 +294,24 @@ for j in range(10000):
 					partials_wrt_weights.append(activations[k][j] * deltas[k][m][0])
 		
 		#Update the weights, and biases after running the network			
-		weight_matrices = weights_update(weight_matrices, partials_wrt_weights, len(inputs[0]), network_aggregate[0].get_layer_size())
-		bias_vectors = bias_update(bias_vectors, deltas)
-	
+		weight_matrices = weights_update(weight_matrices, partials_wrt_weights, len(inputs[0]), \
+			network_aggregate[0].get_layer_size(), input_subset_size, learning_rate)
+		bias_vectors = bias_update(bias_vectors, deltas, input_subset_size, learning_rate)
+		
 		#Apply updated weights and biases to each neuron
 		neuron_bias_update(bias_vectors, network_aggregate)
 		neuron_weight_update(weight_matrices, network_aggregate)
+	
+	#Randomize the data
+	for i in range(input_subset_size):
+		rand = randint(0, input_subset_size - 1)
+		inputs[rand], inputs[i] = inputs[i], inputs[rand]
+		known[rand], known[i] = known[i], known[rand]
 
-#Print results
+#Print results over entire input set
 f = open("results.csv", 'w')
-for i in range(len(inputs)):
-	output_1 = layer_1.run([inputs[i]])
+for i in range(len(inputs_old)):
+	output_1 = layer_1.run([inputs_old[i]])
 	output_2 = layer_2.run(output_1)
 	f.write(str(output_2[0][0])+ ",")
 f.close()
