@@ -73,9 +73,9 @@ def bias_build(network_aggregate):
 	return place_holder
 	
 #Activation (outputs) matrix build
-def activation_build(inputs, network_aggregate):
+def activation_build(input, network_aggregate):
 	place_holder = [[] for i in range(len(network_aggregate))]
-	input_holder = [inputs]
+	input_holder = [input]
 	for i in range(len(place_holder)):
 		mod_holder = network_aggregate[i].run(input_holder)
 		mod_holder = mod_holder[0]
@@ -85,9 +85,9 @@ def activation_build(inputs, network_aggregate):
 	return place_holder
 	
 #Weighted inputs matrix build
-def weighted_input_build(inputs, activation_matrix):
+def weighted_input_build(input, activation_matrix):
 	place_holder = [[] for i in range(len(network_aggregate))]
-	input_holder = inputs
+	input_holder = input
 	for i in range(len(place_holder)):
 		for j in range(len(network_aggregate[i].layer)):
 			place_holder[i].append(dot_product(input_holder, network_aggregate[i].layer[j].weights) \
@@ -104,7 +104,8 @@ def aL_partial_build(final_output, known_values):
 	return place_holder
 	
 #Weights matrix update function
-def weights_update(weights_matrix, partials, input_size, layer_1_size, rate):
+def weights_update(weights_matrix, partials, input_size, layer_1_size, percent, rate):
+	place_holder = weights_matrix[:][:][:]
 	for i in range(len(partials)):
 		if i >= (input_size * layer_1_size):
 			index_1 = 1
@@ -123,12 +124,12 @@ def weights_update(weights_matrix, partials, input_size, layer_1_size, rate):
 	return weights_matrix
 			
 #Bias vector update function
-def bias_update(bias_vectors, deltas, rate):
+def bias_update(bias_vectors, deltas, percent, rate):
 	layer_1_list = []
 	#One place holder for each neuron in layer 1
 	for i in range(len(deltas[0])):
 		layer_1_list.append(deltas[0][i][0])
-	#One place holder for the neuron in layer 2
+	#One place holder for each neuron in layer 2
 	place_holder_10 = deltas[1][0][0]
 	place_holder_1 = [layer_1_list, [place_holder_10]]
 	
@@ -194,10 +195,10 @@ class network_layer(object):
 #******************************************************************************
 #Initialize variables
 inputs = []
-known = []
+known = [""]
 network_aggregate = [] #List of layer objects
-learning_rate = 0.001
-cycles = 20000
+learning_rate = 0.01
+cycles = 2000
 
 #Get input data and mark a subset for training
 inputs_f = open("c:\\Users\\Anthony\\Documents\\osc_data_2.csv", 'r')
@@ -294,8 +295,8 @@ for j in range(cycles):
 		
 		#Update the weights, and biases after running the network			
 		weight_matrices = weights_update(weight_matrices, partials_wrt_weights, len(inputs[0]), \
-			network_aggregate[0].get_layer_size(), learning_rate)
-		bias_vectors = bias_update(bias_vectors, deltas, learning_rate)
+			network_aggregate[0].get_layer_size(), input_subset_size, learning_rate)
+		bias_vectors = bias_update(bias_vectors, deltas, input_subset_size, learning_rate)
 		
 		#Apply updated weights and biases to each neuron
 		neuron_bias_update(bias_vectors, network_aggregate)
@@ -312,5 +313,5 @@ f = open("results.csv", 'w')
 for i in range(len(inputs_old)):
 	output_1 = layer_1.run([inputs_old[i]])
 	output_2 = layer_2.run(output_1)
-	f.write(str(output_2[0][0])+ ",\n")
+	f.write(str(output_2[0][0])+ ",")
 f.close()
